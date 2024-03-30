@@ -32,6 +32,7 @@ import static com.example.practice.spring6resttemplate.client.impl.BeerClientImp
 import static com.example.practice.spring6resttemplate.client.impl.BeerClientImpl.GET_BEER_PATH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.queryParam;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
@@ -46,6 +47,8 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 public class BeerClientMockTest {
 
     static final String URL = "http://localhost:8080";
+    static final String AUTHORIZATION_HEADER = "Authorization";
+    static final String AUTHORIZATION_HEADER_VALUE = "Basic dXNlcjE6cGFzc3dvcmQ=";
 
     BeerClient beerClient;
 
@@ -79,6 +82,7 @@ public class BeerClientMockTest {
     void testListBeers() throws JsonProcessingException {
         String payload = objectMapper.writeValueAsString(getPage());
         server.expect(method(HttpMethod.GET))
+            .andExpect(header(AUTHORIZATION_HEADER, AUTHORIZATION_HEADER_VALUE))
             .andExpect(requestTo(URL + GET_BEER_PATH))
             .andRespond(withSuccess(payload, MediaType.APPLICATION_JSON));
 
@@ -96,6 +100,7 @@ public class BeerClientMockTest {
 
         server.expect(method(HttpMethod.GET))
             .andExpect(requestTo(uri))
+            .andExpect(header(AUTHORIZATION_HEADER, AUTHORIZATION_HEADER_VALUE))
             .andExpect(queryParam("name", "ALE"))
             .andRespond(withSuccess(payload, MediaType.APPLICATION_JSON));
 
@@ -119,6 +124,7 @@ public class BeerClientMockTest {
 
         server.expect(method(HttpMethod.POST))
             .andExpect(requestTo(URL + GET_BEER_PATH))
+            .andExpect(header(AUTHORIZATION_HEADER, AUTHORIZATION_HEADER_VALUE))
             .andRespond(withAccepted().location(uri));
 
         mockGetOperation();
@@ -132,6 +138,7 @@ public class BeerClientMockTest {
     void testUpdateBeer() {
         server.expect(method(HttpMethod.PUT))
             .andExpect(requestToUriTemplate(URL + GET_BEER_BY_ID_PATH, dto.getId()))
+            .andExpect(header(AUTHORIZATION_HEADER, AUTHORIZATION_HEADER_VALUE))
             .andRespond(withNoContent());
 
         mockGetOperation();
@@ -145,6 +152,7 @@ public class BeerClientMockTest {
     void testDeleteBeer() {
         server.expect(method(HttpMethod.DELETE))
             .andExpect(requestToUriTemplate(URL + GET_BEER_BY_ID_PATH, dto.getId()))
+            .andExpect(header(AUTHORIZATION_HEADER, AUTHORIZATION_HEADER_VALUE))
             .andRespond(withNoContent());
 
         beerClient.deleteById(dto.getId());
@@ -157,6 +165,7 @@ public class BeerClientMockTest {
     void testDeleteBeerNotFound() {
         server.expect(method(HttpMethod.DELETE))
             .andExpect(requestToUriTemplate(URL + GET_BEER_BY_ID_PATH, dto.getId()))
+            .andExpect(header(AUTHORIZATION_HEADER, AUTHORIZATION_HEADER_VALUE))
             .andRespond(withResourceNotFound());
 
         assertThrows(HttpClientErrorException.class, () -> beerClient.deleteById(dto.getId()));
@@ -168,6 +177,7 @@ public class BeerClientMockTest {
     private void mockGetOperation() {
         server.expect(method(HttpMethod.GET))
             .andExpect(requestToUriTemplate(URL + GET_BEER_BY_ID_PATH, dto.getId()))
+            .andExpect(header(AUTHORIZATION_HEADER, AUTHORIZATION_HEADER_VALUE))
             .andRespond(withSuccess(dtoJson, MediaType.APPLICATION_JSON));
     }
 
