@@ -2,6 +2,7 @@ package com.example.practice.spring6resttemplate.client.impl;
 
 import com.example.practice.spring6resttemplate.client.BeerClient;
 import com.example.practice.spring6resttemplate.config.RestTemplateBuilderConfig;
+import com.example.practice.spring6resttemplate.config.interceptor.OAuthClientInterceptor;
 import com.example.practice.spring6resttemplate.model.BeerDTO;
 import com.example.practice.spring6resttemplate.model.BeerDTOPageImpl;
 import com.example.practice.spring6resttemplate.model.BeerStyle;
@@ -9,6 +10,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.net.URI;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,12 +19,24 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.client.RestClientTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.client.MockServerRestTemplateCustomizer;
 import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.client.InMemoryOAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
@@ -48,7 +62,7 @@ public class BeerClientMockTest {
 
     static final String URL = "http://localhost:8080";
     static final String AUTHORIZATION_HEADER = "Authorization";
-    static final String AUTHORIZATION_HEADER_VALUE = "Basic dXNlcjE6cGFzc3dvcmQ=";
+    static final String AUTHORIZATION_HEADER_VALUE = "Bearer test";
 
     BeerClient beerClient;
 
@@ -66,9 +80,47 @@ public class BeerClientMockTest {
     BeerDTO dto;
     String dtoJson;
 
+    @MockBean
+    OAuth2AuthorizedClientManager clientManager;
+
+    @Autowired
+    ClientRegistrationRepository clientRegistrationRepository;
+
+    @TestConfiguration
+    public static class TestConfig{
+
+        @Bean
+        ClientRegistrationRepository clientRegistrationRepository(){
+            return new InMemoryClientRegistrationRepository(
+                ClientRegistration.withRegistrationId("springauth")
+                    .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+                    .clientId("test")
+                    .tokenUri("test")
+                    .build()
+            );
+        }
+
+        @Bean
+        OAuth2AuthorizedClientService oAuth2AuthorizedClientService(ClientRegistrationRepository clientRegistrationRepository){
+            return new InMemoryOAuth2AuthorizedClientService(clientRegistrationRepository);
+        }
+
+        @Bean
+        OAuthClientInterceptor oAuthClientInterceptor(
+            OAuth2AuthorizedClientManager manager,
+            ClientRegistrationRepository clientRegistrationRepository
+        ){
+            return new OAuthClientInterceptor(manager, clientRegistrationRepository);
+        }
+    }
 
     @BeforeEach
     void setUp() throws JsonProcessingException {
+        ClientRegistration clientRegistration = clientRegistrationRepository.findByRegistrationId("springauth");
+        OAuth2AccessToken accessToken = new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER, "test", Instant.MIN, Instant.MAX);
+
+        Mockito.when(clientManager.authorize(Mockito.any())).thenReturn(new OAuth2AuthorizedClient(clientRegistration, "test", accessToken));
+
         RestTemplate restTemplate = restTemplateBuilderConfigured.build();
         server = MockRestServiceServer.bindTo(restTemplate).build();
         Mockito.when(mockRestTemplateBuilder.build()).thenReturn(restTemplate);
